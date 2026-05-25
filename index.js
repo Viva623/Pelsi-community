@@ -485,6 +485,18 @@ function injectPrompt() {
     const context = SillyTavern.getContext();
 
     if (settings.enabled) {
+        // OOC 감지: 입력창 텍스트 또는 마지막 유저 메시지 확인
+        const inputText = document.getElementById('send_textarea')?.value?.trim() || '';
+        const isOOC = /^\(\([\s\S]*\)\)$/.test(inputText)
+            || /^\[OOC[:\s]/i.test(inputText)
+            || /^<OOC>/i.test(inputText);
+
+        if (isOOC) {
+            context.setExtensionPrompt(MODULE_NAME, '', 1, 0);
+            console.log('[Community Board] OOC detected, skipping prompt injection');
+            return;
+        }
+
         const prompt = buildBoardPrompt(settings);
         context.setExtensionPrompt(MODULE_NAME, prompt, 1, 0);
         console.log('[Community Board] Prompt injected');
