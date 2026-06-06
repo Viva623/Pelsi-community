@@ -485,11 +485,20 @@ function injectPrompt() {
     const context = SillyTavern.getContext();
 
     if (settings.enabled) {
-        // OOC 감지: 입력창 텍스트 또는 마지막 유저 메시지 확인
+        let lastUserMsg = '';
+        for (let i = context.chat.length - 1; i >= 0; i--) {
+            if (context.chat[i].is_user) {
+                lastUserMsg = context.chat[i].mes?.trim() || '';
+                break;
+            }
+        }
         const inputText = document.getElementById('send_textarea')?.value?.trim() || '';
-        const isOOC = /^\(\([\s\S]*\)\)$/.test(inputText)
-            || /^\[OOC[:\s]/i.test(inputText)
-            || /^<OOC>/i.test(inputText);
+        const textToCheck = lastUserMsg || inputText;
+
+        const isOOC = /^\(ooc[\s:]/i.test(textToCheck)
+            || /^\(\([\s\S]*\)\)$/.test(textToCheck)
+            || /^\[ooc[\s:]/i.test(textToCheck)
+            || /^<ooc>/i.test(textToCheck);
 
         if (isOOC) {
             context.setExtensionPrompt(MODULE_NAME, '', 1, 0);
