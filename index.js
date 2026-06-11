@@ -479,28 +479,49 @@ function updateButtonBadge() {
     }
 }
 
+// ===== OOC 감지 (전송 전 캡처) =====
+let _cbLastInputIsOoc = false;
+
+function installOocDetector() {
+    const textarea = document.getElementById('send_textarea');
+    if (!textarea) return;
+
+    // Enter키 캡처 (textarea 비워지기 전)
+    textarea.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            const text = e.target.value?.trim() || '';
+            _cbLastInputIsOoc = /^\(ooc[\s:]/i.test(text)
+                || /^\(\([\s\S]*\)\)$/.test(text)
+                || /^\[ooc[\s:]/i.test(text)
+                || /^<ooc>/i.test(text);
+        }
+    }, true);
+
+    // 보내기 버튼 캡처
+    const sendForm = document.getElementById('send_form');
+    if (sendForm) {
+        sendForm.addEventListener('click', (e) => {
+            if (e.target.id === 'send_but' || e.target.closest('#send_but')) {
+                const text = textarea.value?.trim() || '';
+                _cbLastInputIsOoc = /^\(ooc[\s:]/i.test(text)
+                    || /^\(\([\s\S]*\)\)$/.test(text)
+                    || /^\[ooc[\s:]/i.test(text)
+                    || /^<ooc>/i.test(text);
+            }
+        }, true);
+    }
+
+    console.log('[Community Board] OOC detector installed');
+}
+
 // ===== Prompt Injection =====
 function injectPrompt() {
     const settings = getSettings();
     const context = SillyTavern.getContext();
 
     if (settings.enabled) {
-        let lastUserMsg = '';
-        for (let i = context.chat.length - 1; i >= 0; i--) {
-            if (context.chat[i].is_user) {
-                lastUserMsg = context.chat[i].mes?.trim() || '';
-                break;
-            }
-        }
-        const inputText = document.getElementById('send_textarea')?.value?.trim() || '';
-        const textToCheck = lastUserMsg || inputText;
-
-        const isOOC = /^\(ooc[\s:]/i.test(textToCheck)
-            || /^\(\([\s\S]*\)\)$/.test(textToCheck)
-            || /^\[ooc[\s:]/i.test(textToCheck)
-            || /^<ooc>/i.test(textToCheck);
-
-        if (isOOC) {
+        if (_cbLastInputIsOoc) {
+            _cbLastInputIsOoc = false;
             context.setExtensionPrompt(MODULE_NAME, '', 1, 0);
             console.log('[Community Board] OOC detected, skipping prompt injection');
             return;
@@ -645,6 +666,7 @@ function addMainButton() {
 
     loadSettingsUI();
     addMainButton();
+    installOocDetector();
 
     context.eventSource.on(context.eventTypes.CHARACTER_MESSAGE_RENDERED, (messageIndex) => {
         setTimeout(() => {
